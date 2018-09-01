@@ -98,6 +98,11 @@
   :group 'wgrep
   :type 'boolean)
 
+(defcustom wgrep-ignore-carriage-return t
+  "Non-nil means to ignore  at the end of lines."
+  :group 'wgrep
+  :type 'boolean)
+
 (defcustom wgrep-enable-key "\C-c\C-p"
   "This variable will be obsoleted in the future release.
 Key to enable `wgrep-mode'."
@@ -458,6 +463,13 @@ End of this match equals start of file contents.
          (t
           (overlay-put ov 'face 'wgrep-face)))))))
 
+(defun wgrep-maybe-strip-cr-suffix (string)
+  "Strip ^M Suffix from STRING if wgrep-ignore-carriage-return is non-nil."
+  (if (and wgrep-ignore-carriage-return
+           (string-suffix-p "" string))
+      (substring string 0 -1)
+    string))
+
 ;; get overlay BEG and END is passed by `after-change-functions'
 (defun wgrep-editing-overlay (&optional start end)
   (let ((beg (or start (line-beginning-position)))
@@ -489,7 +501,8 @@ End of this match equals start of file contents.
               (next-single-property-change (point) 'wgrep-line-filename nil eol))
              (filename (get-text-property (point) 'wgrep-line-filename))
              (linum (get-text-property (point) 'wgrep-line-number))
-             (value (buffer-substring-no-properties header-end eog))
+             (value (wgrep-maybe-strip-cr-suffix
+                     (buffer-substring-no-properties header-end eog)))
              contents-begin)
         (goto-char header-end)
         (setq contents-begin (point-marker))
@@ -876,8 +889,8 @@ This change will be applied when \\[wgrep-finish-edit]."
              (buffer-live-p wgrep-sibling-buffer))
     (with-current-buffer wgrep-sibling-buffer
       (when (wgrep-goto-grep-line file number)
-        (buffer-substring-no-properties
-         (point) (line-end-position))))))
+        (wgrep-maybe-strip-cr-suffix
+         (buffer-substring-no-properties (point) (line-end-position)))))))
 
 (defun wgrep-goto-grep-line (file number)
   (let ((first (point))
